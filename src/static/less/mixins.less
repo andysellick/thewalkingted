@@ -1,0 +1,144 @@
+/* --mixins */
+
+	/* use to generate font sizes based off the default font size of 16px */
+	/* pass the size in px/pt to return a percentage e.g. .fontcalculate(26) would return a font size of 162.5% */
+	.fontcalculate(@size){
+		font-size:(@size / 16) * 100%;
+	}
+	
+	/* square aspect ratio elements */
+	.squarewrapper {
+		position: relative;
+		padding-bottom: 100%;
+		height: 0;
+		.square {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+		}
+	}
+
+    /* http://zerosixthree.se/vertical-align-anything-with-just-3-lines-of-css/ */
+    .vertalign {
+		position: relative;
+		top: 50%;
+		.transform( translateY(-50%) );
+	}
+
+    /* make an element invisible to sighted users but still visible to screen readers */
+    /* http://webaim.org/techniques/css/invisiblecontent/ */
+    .invisible,
+    .totallyinvisible {
+        position:absolute;
+        left:-100000px;
+        width:1px;
+        height:1px;
+        overflow:hidden;
+        outline:0;
+    }
+    .invisible {
+        &:focus {
+            position:static;
+            width:auto;
+            height:auto;
+        }
+    }
+
+	/* border radius */
+	.border-radius(@radius: 0.3em) {
+		-webkit-border-radius: @radius;
+		-moz-border-radius   : @radius;
+		border-radius        : @radius;
+	}
+
+    /* GRADIENTS */
+    /* vertical, two colour */
+    .vertical-gradient( @startcolor, @startpoint, @endcolor, @endpoint ) {
+		background: @endcolor; /* Old browsers */
+		background: -moz-linear-gradient(top, @startcolor @startpoint, @endcolor @endpoint); /* FF3.6-15 */
+		background: -webkit-linear-gradient(top, @startcolor @startpoint,@endcolor @endpoint); /* Chrome10-25,Safari5.1-6 */
+		background: linear-gradient(to bottom, @startcolor @startpoint,@endcolor @endpoint); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+		filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='@startcolor', endColorstr='@endcolor',GradientType=0 ); /* IE6-9 */
+    }
+	/* vertical, four colours */
+	.vertical-multi-gradient( @color1, @pos1, @color2, @pos2, @color3, @pos3, @color4, @pos4 ){
+		background: @color1; /* Old browsers */
+		background: -moz-linear-gradient(top, @color1 @pos1, @color2 @pos2, @color3 @pos3, @color4 @pos4); /* FF3.6-15 */
+		background: -webkit-linear-gradient(top, @color1 @pos1,@color2 @pos2,@color3 @pos3,@color4 @pos4); /* Chrome10-25,Safari5.1-6 */
+		background: linear-gradient(to bottom, @color1 @pos1,@color2 @pos2,@color3 @pos3,@color4 @pos4); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+		filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='@color1', endColorstr='@color4',GradientType=0 ); /* IE6-9 */
+	}
+	/* Only for modern browsers. IE8 and 9 will only show the background image and one colour */
+	/* note also that this defaults to no-repeat, top left, but this can be overridden */
+	.vertical-image-gradient( @startcolor, @startpoint, @endcolor, @endpoint, @image ){
+		background: @endcolor; /* Old browsers */
+		background: url(@image), -moz-linear-gradient(top, @startcolor @startpoint, @endcolor @endpoint); /* FF3.6-15 */
+		background: url(@image), -webkit-linear-gradient(top, @startcolor @startpoint,@endcolor @endpoint); /* Chrome10-25,Safari5.1-6 */
+		background: url(@image), linear-gradient(to bottom, @startcolor @startpoint,@endcolor @endpoint); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+	}
+
+	/* horizontal, two colour */
+	.horizontal-gradient( @startcolor, @startpoint, @endcolor, @endpoint ) {
+		background: @startcolor; /* Old browsers */
+		background: -moz-linear-gradient(left, @startcolor @startpoint, @endcolor @endpoint); /* FF3.6-15 */
+		background: -webkit-linear-gradient(left, @startcolor @startpoint,@endcolor @endpoint); /* Chrome10-25,Safari5.1-6 */
+		background: linear-gradient(to right, @startcolor @startpoint,@endcolor @endpoint); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+		filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='@startcolor', endColorstr='@endcolor',GradientType=1 ); /* IE6-9 */
+	}
+
+	/* shadow */
+	/* usage: .box-shadow( ~"0 1px 0 red, 0 -1px 0 green" ); or, for modern versions of Less, .box-shadow( 0 1px 0 red, 0 -1px 0 green; ); */
+	.box-shadow( @shadow ) {
+		-webkit-box-shadow: @shadow;
+		box-shadow        : @shadow;
+	}
+
+	/* --transforms */
+	.transform( @trans ){
+		transform: @trans;
+		-ms-transform: @trans;
+		-moz-tranform: @trans;
+		-webkit-transform: @trans;
+		-o-transform: @trans;
+	}
+	.transform-origin( @trans ) {
+		transform-origin: @trans;
+		-ms-transform-origin: @trans;
+		-moz-transform-origin: @trans;
+		-o-transform-origin: @trans;
+		-webkit-transform-origin: @trans;
+	}
+
+	/* usage: .transition( ~"transition, another transition" ); */
+    .transition( @trans ){
+        transition: @trans;
+        -moz-transition: @trans;
+        -webkit-transition: @trans;
+        -o-transition: @trans;
+    }
+
+    .transparency( @trans ){
+        @mstrans: @trans * 100;
+        filter: alpha(opacity=@mstrans);
+        -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity="@mstrans")"; /* IE 8 */
+        -moz-opacity: @trans; /* Netscape */
+        -khtml-opacity: @trans; /* Safari 1.x */
+        opacity: @trans; /* Good browsers */
+    }
+
+	/* --box sizing */
+	.border-box {
+		-moz-box-sizing   : border-box;
+		-webkit-box-sizing: border-box;
+		-ms-box-sizing    : border-box;
+		box-sizing        : border-box;
+	}
+	.content-box {
+		-moz-box-sizing   : content-box;
+		-webkit-box-sizing: content-box;
+		-ms-box-sizing    : content-box;
+		box-sizing        : content-box;
+		*behavior         : none;
+	}
