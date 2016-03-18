@@ -38,10 +38,10 @@ function PlayerObj(){
 	this.spriteh = 550;
 	this.walkrightframes = [];
 	this.walkleftframes = [];
-	//contains: key pressed, animation frames, frame duration, end frame, 
+	//contains: key pressed, animation frames, frame duration, end frame, alter x pos by
 	this.animations = [
-		[39, rightframeswalk, 60, tedframesmisc[0]],
-		[37, leftframeswalk, 10, tedframesmisc[1]]
+		[39, rightframeswalk, 70, tedframesmisc[0], 15],
+		[37, leftframeswalk, 10, tedframesmisc[1], -20]
 	];
 	this.curranim = 0;
 	this.animationStart = 0;
@@ -51,42 +51,54 @@ function PlayerObj(){
 	this.draw = function(){
 		ted.general.drawOnCanvas(this);
 	};
-	this.acceptKeypress = function(e, key, upordown){
-		//console.log(key);
-		if(!this.curranim){ //look up and store the required animation
-			for(var i in this.animations){
+
+	this.moveLeft = function(key,upordown){
+		if(upordown){
+			this.doAnimation(39,1);
+		}
+	};
+	this.moveRight = function(key,upordown){
+		if(upordown){
+			this.doAnimation(37,1);
+		}
+	};
+
+	this.doAnimation = function(key, upordown){
+		if(this.curranim === 0){ //look up and store the required animation
+			for(var i = 0; i < this.animations.length; i++){
 				if(this.animations[i][0] === key){ //the key pressed matches this action, so do it
 					this.curranim = this.animations[i];
+					this.currentFrame = 0;
+					this.maxFrames = this.curranim[1].length; //store some data about this animation
+					//this.animationStart = new Date().getTime(); //record now, the time we started the animation
 					break;
 				}
 			}
 		}
-		else {
-			if(upordown){ //key has been pressed down
-				if(this.animationStart == 0){
-					this.currentFrame = 0;
-					this.maxFrames = this.curranim[1].length; //store some data about this animation
-					this.animationStart = new Date().getTime(); //record now, the time we started the animation
+		if(upordown){ //key has been pressed down
+			if(this.animationStart < (new Date().getTime() - this.curranim[2]) || this.animationStart === 0){ //if it's time to move to the next frame
+				this.xpos += this.curranim[4]; //move the xpos, probably a better way to do this
+				this.animationStart = new Date().getTime();
+				if(this.currentFrame < this.maxFrames){ //check if we need to loop back to the first frame
 					this.sprite = this.curranim[1][this.currentFrame];
+					this.currentFrame++;
 				}
 				else {
-					if(this.animationStart < (new Date().getTime() - this.curranim[2])){ //if it's time to move to the next frame
-						this.animationStart = new Date().getTime();
-						if(this.currentFrame < this.maxFrames){ //check if we need to loop back to the first frame
-							this.sprite = this.curranim[1][this.currentFrame];
-							this.currentFrame++;
-						}
-						else {
-							this.currentFrame = 0;
-						}
-					}
+					this.currentFrame = 0;
 				}
 			}
-			else { //key has been released, stop the animation somewhere sensible
-				this.sprite = this.curranim[3];
-				this.animationStart = 0;
-				this.curranim = 0;
-			}
+		}
+		else { //key has been released, stop the animation somewhere sensible
+			this.clearAnimation();
+		}
+	};
+
+	//clear any current animation, using the information stored within it
+	this.clearAnimation = function(){
+		if(this.curranim){
+			this.sprite = this.curranim[3];
+			this.animationStart = 0;
+			this.curranim = 0;
 		}
 	};
 }
@@ -98,6 +110,7 @@ var ted = {
 	canvasw: 0,
 	canvash: 0,
 	player: 0,
+	keyState: [],
 
     general: {
         init: function(){
@@ -123,19 +136,28 @@ var ted = {
 		},
 		setupPlayer: function(){
 			ted.player = new PlayerObj();
-		    $(window).keydown(function(e){
-		        var code = e.keyCode ? e.keyCode : e.which;
-		        ted.player.acceptKeypress(e,code,1);
-		    });
-
-		    $(window).keyup(function(e){
-		        var code = e.keyCode ? e.keyCode : e.which;
-		        ted.player.acceptKeypress(e,code,0);
-		    });
+			//http://stackoverflow.com/questions/12273451/how-to-fix-delay-in-javascript-keydown
+			window.addEventListener('keydown',function(e){
+			    ted.keyState[e.keyCode || e.which] = true;
+			},true);
+			window.addEventListener('keyup',function(e){
+			    ted.keyState[e.keyCode || e.which] = false;
+			},true);
 		}
     },
     game: {
 		gameLoop: function(){
+			//this is slightly less flexible than I'd like but it works
+			if(ted.keyState[37]){
+				ted.player.moveRight(37,ted.keyState[37]);
+			}
+			else if(ted.keyState[39]){
+				ted.player.moveLeft(39,ted.keyState[39]);
+			}
+			else {
+				ted.player.clearAnimation();
+			}
+
 			ted.general.clearCanvas();
 			ted.player.draw();
 			setTimeout(ted.game.gameLoop,20);
