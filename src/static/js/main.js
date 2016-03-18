@@ -1,26 +1,9 @@
 
 var loaders = [];
 var imgpath = 'static/img/';
-var tedframesmisc = [
-'stand.png',
-'stand_i.png',
-];
-var tedframeswalk = [
-'walk_01.png',
-'walk_02.png',
-'walk_03.png',
-'walk_04.png',
-'walk_05.png',
-'walk_06.png',
-'walk_07.png',
-'walk_08.png',
-'walk_09.png',
-'walk_10.png',
-'walk_11.png',
-'walk_12.png',
-'walk_13.png',
-'walk_14.png',
-];
+var tedframesmisc = ['right_stand.png','left_stand.png'];
+var leftframeswalk = ['left_walk_01.png','left_walk_02.png','left_walk_03.png','left_walk_04.png','left_walk_05.png','left_walk_06.png','left_walk_07.png','left_walk_08.png','left_walk_09.png','left_walk_10.png','left_walk_11.png','left_walk_12.png','left_walk_13.png'];
+var rightframeswalk = ['right_walk_01.png','right_walk_02.png','right_walk_03.png','right_walk_04.png','right_walk_05.png','right_walk_06.png','right_walk_07.png','right_walk_08.png','right_walk_09.png','right_walk_10.png','right_walk_11.png','right_walk_12.png','right_walk_13.png'];
 
 //preload images
 function loadFile(src,array,num) {
@@ -39,8 +22,10 @@ function callAllPreloads(array,dir){
         loaders.push(loadFile(dir + array[z], array, z));
     }
 }
+//fixme at some point having all of these simply in a big structure would mean we could loop through it all in one call rather than all these individual ones
 callAllPreloads(tedframesmisc,imgpath);
-callAllPreloads(tedframeswalk,imgpath);
+callAllPreloads(leftframeswalk,imgpath);
+callAllPreloads(rightframeswalk,imgpath);
 
 //general object for player
 function PlayerObj(){
@@ -48,24 +33,60 @@ function PlayerObj(){
 	this.ypos = 100;
 	this.w = 350;
 	this.h = 550;
-	this.sprite = 0;
+	this.sprite = tedframesmisc[0];
 	this.spritew = 350;
 	this.spriteh = 550;
+	this.walkrightframes = [];
+	this.walkleftframes = [];
+	//contains: key pressed, animation frames, frame duration, end frame, 
+	this.animations = [
+		[39, rightframeswalk, 60, tedframesmisc[0]],
+		[37, leftframeswalk, 10, tedframesmisc[1]]
+	];
+	this.curranim = 0;
+	this.animationStart = 0;
+	this.currentFrame = 0;
+	this.maxFrames = 0;
+
 	this.draw = function(){
 		ted.general.drawOnCanvas(this);
 	};
 	this.acceptKeypress = function(e, key, upordown){
 		//console.log(key);
-		if(key === 39){ //right
-			this.sprite = tedframesmisc[0]; //fixme need better way of doing this
-			this.xpos += 10;
+		if(!this.curranim){ //look up and store the required animation
+			for(var i in this.animations){
+				if(this.animations[i][0] === key){ //the key pressed matches this action, so do it
+					this.curranim = this.animations[i];
+					break;
+				}
+			}
 		}
-		else if(key === 37){ //left
-			this.sprite = tedframesmisc[1];
-			this.xpos -= 10;
-		}
-		else if(key === 38){ //up
-
+		else {
+			if(upordown){ //key has been pressed down
+				if(this.animationStart == 0){
+					this.currentFrame = 0;
+					this.maxFrames = this.curranim[1].length; //store some data about this animation
+					this.animationStart = new Date().getTime(); //record now, the time we started the animation
+					this.sprite = this.curranim[1][this.currentFrame];
+				}
+				else {
+					if(this.animationStart < (new Date().getTime() - this.curranim[2])){ //if it's time to move to the next frame
+						this.animationStart = new Date().getTime();
+						if(this.currentFrame < this.maxFrames){ //check if we need to loop back to the first frame
+							this.sprite = this.curranim[1][this.currentFrame];
+							this.currentFrame++;
+						}
+						else {
+							this.currentFrame = 0;
+						}
+					}
+				}
+			}
+			else { //key has been released, stop the animation somewhere sensible
+				this.sprite = this.curranim[3];
+				this.animationStart = 0;
+				this.curranim = 0;
+			}
 		}
 	};
 }
@@ -102,7 +123,6 @@ var ted = {
 		},
 		setupPlayer: function(){
 			ted.player = new PlayerObj();
-			ted.player.sprite = tedframesmisc[0];
 		    $(window).keydown(function(e){
 		        var code = e.keyCode ? e.keyCode : e.which;
 		        ted.player.acceptKeypress(e,code,1);
