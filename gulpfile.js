@@ -97,8 +97,11 @@ gulp.task('images', function() {
     }))
     //.pipe($.bytediff.start()) //seems to be causing a problem with image reprocessing in subdirs on windows
     .pipe($.newer(paths.images.dest))
+
     .pipe($.cache($.imagemin({ optimizationLevel: 3, progressive: true, interlaced: true })))
-    //.pipe($.bytediff.stop()) //seems to be causing a problem with image reprocessing in subdirs on windows
+    //.pipe($.imagemin({ optimizationLevel: 3, progressive: true, interlaced: true }))
+
+	//.pipe($.bytediff.stop()) //seems to be causing a problem with image reprocessing in subdirs on windows
     .pipe(gulp.dest(paths.images.dest))
     .pipe(browserSync.stream())
     //.pipe($.notify({ message: 'Images task complete' }));
