@@ -2,8 +2,8 @@
 var loaders = [];
 var imgpath = 'static/img/';
 var tedframesmisc = ['right_stand.png','left_stand.png'];
-var leftframeswalk = ['left_walk_01.png','left_walk_02.png','left_walk_03.png','left_walk_04.png','left_walk_05.png','left_walk_06.png','left_walk_07.png','left_walk_08.png','left_walk_09.png','left_walk_10.png','left_walk_11.png','left_walk_12.png','left_walk_13.png'];
-var rightframeswalk = ['right_walk_01.png','right_walk_02.png','right_walk_03.png','right_walk_04.png','right_walk_05.png','right_walk_06.png','right_walk_07.png','right_walk_08.png','right_walk_09.png','right_walk_10.png','right_walk_11.png','right_walk_12.png','right_walk_13.png'];
+var leftframeswalk = ['left_walk_1.png','left_walk_2.png','left_walk_3.png','left_walk_4.png','left_walk_5.png','left_walk_6.png','left_walk_7.png','left_walk_8.png','left_walk_9.png','left_walk_10.png','left_walk_11.png','left_walk_12.png','left_walk_13.png'];
+var rightframeswalk = ['right_walk_1.png','right_walk_2.png','right_walk_3.png','right_walk_4.png','right_walk_5.png','right_walk_6.png','right_walk_7.png','right_walk_8.png','right_walk_9.png','right_walk_10.png','right_walk_11.png','right_walk_12.png','right_walk_13.png'];
 
 //preload images
 function loadFile(src,array,num) {
@@ -31,42 +31,72 @@ callAllPreloads(rightframeswalk,imgpath);
 function PlayerObj(){
 	this.xpos = 100;
 	this.ypos = 100;
-	this.w = 350;
-	this.h = 550;
+	this.idealw = 500;
+	this.idealh = 504;
+	this.w = 0;
+	this.h = 0;
 	this.sprite = tedframesmisc[0];
-	this.spritew = 350;
-	this.spriteh = 550;
+	this.spritew = 500;
+	this.spriteh = 504;
 	this.walkrightframes = [];
 	this.walkleftframes = [];
-	//contains: key pressed, animation frames, frame duration, end frame, alter x pos by
+	//contains: key pressed, animation frames, frame duration, end frame, direction
 	this.animations = [
-		[39, rightframeswalk, 70, tedframesmisc[0], 15],
-		[37, leftframeswalk, 10, tedframesmisc[1], -20]
+		[39, rightframeswalk, 50, tedframesmisc[0], 1],
+		[37, leftframeswalk, 50, tedframesmisc[1], -1]
 	];
 	this.curranim = 0;
 	this.animationStart = 0;
 	this.currentFrame = 0;
 	this.maxFrames = 0;
+	this.walkdirection = 0;
+	this.speed = 10;
+	this.jump = 0;
+	this.jumpHeight = 50;
+	
+	this.init = function(){
+		var sizes = ted.general.calculateAspectRatio(this.idealw,this.idealh,ted.canvasw,ted.canvash / 2);
+		this.w = sizes[0];
+		this.h = sizes[1];
+		this.ypos = ted.canvash - this.h;
+		this.speed = (this.w / 100) * 6; //base the speed on the width of the character, 6% is an arbitrarily chosen value that looks okay
+	};
 
 	this.draw = function(){
 		ted.general.drawOnCanvas(this);
 	};
 
-	this.moveLeft = function(key,upordown){
-		if(upordown){
-			this.doAnimation(39,1);
+	//this is a bit clumsy but two keys need to cancel each other out
+	this.move = function(keys){
+		if(keys[37] && keys[39]){ //both keys are pressed, don't move
+			this.walkdirection = 0;
 		}
-	};
-	this.moveRight = function(key,upordown){
-		if(upordown){
-			this.doAnimation(37,1);
+		else if(keys[37]){ //move right
+			this.walkdirection = 37;
+		}
+		else if(keys[39]){ //move left
+			this.walkdirection = 39;
+		}
+		else {
+			this.walkdirection = 0;
+		}
+		
+		if(keys[38] && this.jump === 0){
+			console.log('up');
+		}
+		
+		if(this.walkdirection){
+			this.doAnimation();
+		}
+		else {
+			this.clearAnimation();
 		}
 	};
 
-	this.doAnimation = function(key, upordown){
+	this.doAnimation = function(){
 		if(this.curranim === 0){ //look up and store the required animation
 			for(var i = 0; i < this.animations.length; i++){
-				if(this.animations[i][0] === key){ //the key pressed matches this action, so do it
+				if(this.animations[i][0] === this.walkdirection){ //the key pressed matches this action, so do it
 					this.curranim = this.animations[i];
 					this.currentFrame = 0;
 					this.maxFrames = this.curranim[1].length; //store some data about this animation
@@ -75,21 +105,17 @@ function PlayerObj(){
 				}
 			}
 		}
-		if(upordown){ //key has been pressed down
-			if(this.animationStart < (new Date().getTime() - this.curranim[2]) || this.animationStart === 0){ //if it's time to move to the next frame
-				this.xpos += this.curranim[4]; //move the xpos, probably a better way to do this
-				this.animationStart = new Date().getTime();
-				if(this.currentFrame < this.maxFrames){ //check if we need to loop back to the first frame
-					this.sprite = this.curranim[1][this.currentFrame];
-					this.currentFrame++;
-				}
-				else {
-					this.currentFrame = 0;
-				}
+		if(this.animationStart < (new Date().getTime() - this.curranim[2]) || this.animationStart === 0){ //if it's time to move to the next frame
+			//this.xpos += this.curranim[4]; //move the xpos, probably a better way to do this
+			this.xpos += this.speed * this.curranim[4];
+			this.animationStart = new Date().getTime();
+			if(this.currentFrame < this.maxFrames){ //check if we need to loop back to the first frame
+				this.sprite = this.curranim[1][this.currentFrame];
+				this.currentFrame++;
 			}
-		}
-		else { //key has been released, stop the animation somewhere sensible
-			this.clearAnimation();
+			else {
+				this.currentFrame = 0;
+			}
 		}
 	};
 
@@ -120,15 +146,49 @@ var ted = {
             }
             else {
                 ted.ctx = ted.canvas.getContext('2d');
-				var parentel = $('#canvas').parent();
-				ted.canvas.width = ted.canvasw = parentel.outerWidth();
-				ted.canvas.height = ted.canvash = parentel.outerHeight();
+                this.initCanvasSize();
 				ted.general.setupPlayer();
 	            ted.game.gameLoop();
             }
         },
+        //initialise the size of the canvas based on the ideal aspect ratio and the size of the parent element
+		initCanvasSize: function(){
+			//ideal size for canvas
+			var destwidth = 1000;
+			var destheight = 600;
+			var parentel = $('#canvas').parent();
+			/*
+			var aspect = Math.floor((parentel.height() / destheight) * destwidth);
+
+			var cwidth = Math.min(destwidth, parentel.width());
+			var cheight = Math.min(destheight, parentel.height());
+
+			ted.canvas.width = ted.canvasw = Math.min(parentel.width(),aspect);
+			ted.canvas.height = ted.canvash = (ted.canvas.width / destwidth) * destheight;
+			*/
+			//resize the canvas to maintain aspect ratio depending on screen size
+			var sizes = ted.general.calculateAspectRatio(destwidth,destheight,parentel.width(),parentel.height());
+			ted.canvas.width = ted.canvasw = sizes[0];
+			ted.canvas.height = ted.canvash = sizes[1];
+
+        },
+        //given a width and height representing an aspect ratio, and the size of the containing thing, return the largest w and h matching that aspect ratio
+		calculateAspectRatio: function(idealw,idealh,parentw,parenth){
+			var aspect = Math.floor((parenth / idealh) * idealw);
+			var cwidth = Math.min(idealw, parentw);
+			var cheight = Math.min(idealh, parenth);
+
+			var w = Math.min(parentw,aspect);
+			var h = (w / idealw) * idealh;
+			return([w,h]);
+		},
+        //fixme this will contain resizing for all the elements as well
+        resizeCanvas: function(){
+			ted.general.initCanvasSize();
+			ted.player.init();
+		},
         clearCanvas: function(){
-            ted.ctx.clearRect(0, 0, ted.canvas.width, ted.canvas.height);//clear the canvas
+            ted.ctx.clearRect(0, 0, ted.canvas.width, ted.canvas.height); //clear the canvas
         },
         drawOnCanvas: function(obj){
 			//console.log(obj.sprite);
@@ -136,6 +196,7 @@ var ted = {
 		},
 		setupPlayer: function(){
 			ted.player = new PlayerObj();
+			ted.player.init();
 			//http://stackoverflow.com/questions/12273451/how-to-fix-delay-in-javascript-keydown
 			window.addEventListener('keydown',function(e){
 			    ted.keyState[e.keyCode || e.which] = true;
@@ -143,21 +204,11 @@ var ted = {
 			window.addEventListener('keyup',function(e){
 			    ted.keyState[e.keyCode || e.which] = false;
 			},true);
-		}
+		},
     },
     game: {
 		gameLoop: function(){
-			//this is slightly less flexible than I'd like but it works
-			if(ted.keyState[37]){
-				ted.player.moveRight(37,ted.keyState[37]);
-			}
-			else if(ted.keyState[39]){
-				ted.player.moveLeft(39,ted.keyState[39]);
-			}
-			else {
-				ted.player.clearAnimation();
-			}
-
+			ted.player.move(ted.keyState);
 			ted.general.clearCanvas();
 			ted.player.draw();
 			setTimeout(ted.game.gameLoop,20);
@@ -173,4 +224,11 @@ window.onload = function(){
 	$.when.apply(null, loaders).done(function() {
 	    ted.general.init();
     });
+
+	var resize;
+	window.addEventListener('resize', function(event){
+		clearTimeout(resize);
+		resize = setTimeout(ted.general.resizeCanvas,200);
+	});
 };
+
