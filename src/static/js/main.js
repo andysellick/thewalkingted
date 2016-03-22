@@ -42,6 +42,8 @@ function PlayerObj(){
 	this.sprite = tedframesmisc[0];
 	this.spritew = 500;
 	this.spriteh = 504;
+	this.spritex = 0;
+	this.spritey = 0;
 	this.walkrightframes = [];
 	this.walkleftframes = [];
 	//contains: key pressed, animation frames, frame duration, end frame, direction
@@ -58,7 +60,8 @@ function PlayerObj(){
 	this.limitxmin = 0; //this is the window within which the character can move, outside of the world moves
 	this.limitxmax = 0;
 	this.jump = 0;
-	this.jumpHeight = 50;
+	this.jumpby = 10;
+	this.jumpHeight = 100;
 	
 	this.init = function(){
 		var sizes = ted.general.calculateAspectRatio(this.idealw,this.idealh,ted.canvasw,ted.canvash / 2);
@@ -96,7 +99,9 @@ function PlayerObj(){
 		}
 		
 		if(keys[38] && this.jump === 0){
-			console.log('up');
+			//console.log('up');
+			this.jump = Math.min(this.jumpHeight,this.jump + this.jumpby);
+			this.ypos -= this.jump;
 		}
 		
 		if(this.walkdirection){
@@ -166,83 +171,101 @@ function WorldObj(){
 		{
 			name: 'foreground',
 			sprite: worldimages[0],
-			spritew: 2880,
-			spriteh: 56,
+			spriteactualw: 10000,
+			spriteactualh: 56,
+			spritex: 0,
+			spritey: 0,
 			xpos: 0,
 			ypos: 0,
-			idealw: 960,
-			idealh: 56,
 			w: 0,
 			h: 0,
-			scalex: 2,
-			scaley: 0.1
+			scalex: 2
 		},
 		{
 			name: 'main',
 			sprite: worldimages[1],
-			spritew: 5000,
-			spriteh: 167,
+			spriteactualw: 5000,
+			spriteactualh: 167,
+			spritex: 0,
+			spritey: 0,
 			xpos: 0,
 			ypos: 0,
-			idealw: 961,
-			idealh: 167,
 			w: 0,
 			h: 0,
-			scalex: 1,
-			scaley: 0.3
+			scalex: 1
 		},
 		{
-			name: 'first background',
+			name: 'pyramids',
 			sprite: worldimages[2],
-			spritew: 3000,
-			spriteh: 343,
+			spriteactualw: 3000,
+			spriteactualh: 343,
+			spritex: 0,
+			spritey: 0,
 			xpos: 0,
 			ypos: 0,
-			idealw: 714,
-			idealh: 343,
 			w: 0,
 			h: 0,
-			scalex: 0.8,
-			scaley: 0.6
+			scalex: 0.6
 		},
 		{
-			name: 'second background',
+			name: 'hills',
 			sprite: worldimages[3],
-			spritew: 3500,
-			spriteh: 280,
+			spriteactualw: 3500,
+			spriteactualh: 280,
+			spritex: 0,
+			spritey: 0,
 			xpos: 0,
 			ypos: 0,
-			idealw: 960,
-			idealh: 280,
 			w: 0,
 			h: 0,
-			scalex: 0.7,
-			scaley: 0.5
+			scalex: 0.7
 		},
 		{
-			name: 'background',
+			name: 'sky',
 			sprite: worldimages[4],
-			spritew: 2500,
-			spriteh: 645,
+			spriteactualw: 2500,
+			spriteactualh: 645,
+			spritex: 0,
+			spritey: 0,
 			xpos: 0,
 			ypos: 0,
-			idealw: 960,
-			idealh: 645,
 			w: 0,
 			h: 0,
-			scalex: 0.5,
-			scaley: 1
+			scalex: 0.5
 		}
 	];
 
 	this.init = function(){
+		this.limitxmax = this.w;
 		for(var i = 0; i < this.layers.length; i++){
+			/*
+				layers are set to the same width and height of the canvas
+				the world is many times larger than the canvas
+				each layer moves at a different speed, the images displayed on them are an appropriate size for the speed, controlled by the scalex value, assuming a world size x5 of the canvas e.g.
+				- layer with scalex 1 is same size as the world, moves at 1x world speed, so needs an image that is 500% the width of the canvas
+				- layer with scalex 2 is same size as the world, moves at 2x world speed, so needs an image that is 1000% the width of the canvas
+			*/
 			//set size of each layer, relates to the overall world size using the scalex value
-			this.layers[i].w = this.w * this.layers[i].scalex;
+			/*
+			this.layers[i].w = this.w * this.layers[i].scalex + (ted.canvasw * (1 - this.layers[i].scalex)); //this extra addition makes all layers finish together at the right edge of the canvas
 			this.layers[i].h = this.h * this.layers[i].scaley;
+			*/
+			if(!this.xpos){ //only do this on page load
+				var posx = (this.layers[i].xpos / ted.prevcanvasw) * 100;
+				this.layers[i].spritex = (ted.canvasw / 100) * posx;
+				this.layers[i].spritey = 0;
+			}
 
-			var posx = (this.layers[i].xpos / ted.prevcanvasw) * 100;
-			this.layers[i].xpos = (ted.canvasw / 100) * posx;
+
+			var perc = ((ted.canvasw / this.w) * 100) / this.layers[i].scalex; //this is the percentage of the layer image we need to display
+			this.layers[i].spritew = ((this.layers[i].spriteactualw / 100) * perc) ; //this is the actual px of the image we need to display
+			this.layers[i].spriteh = this.layers[i].spriteactualh;
+
+			var tmp = this.w * this.layers[i].scalex; //actual size of the image on this layer
+			var tmp2 = (tmp / this.layers[i].spriteactualw) * 100;
+			var tmp3 = (this.layers[i].spriteactualh / 100) * tmp2;
+			this.layers[i].h = tmp3;
+			this.layers[i].w = ted.canvasw;
 
 			//draw each one from the bottom of the canvas, fixme may change
 			this.layers[i].ypos = ted.canvash - this.layers[i].h;
@@ -250,18 +273,25 @@ function WorldObj(){
 	};
 
 	this.draw = function(layer){
-		//ted.ctx.drawImage(obj.sprite, 0, 0, obj.spritew, obj.spriteh, obj.xpos, obj.ypos, obj.w, obj.h);
+		//image, start drawing from sprite at x, at y, sprite width, sprite height, draw on canvas at x, at y, width to draw this at, height
+		//ted.ctx.drawImage(obj.sprite, obj.spritex, obj.spritey, obj.spritew, obj.spriteh, obj.xpos, obj.ypos, obj.w, obj.h);
 		ted.general.drawOnCanvas(this.layers[layer]);
 	};
 
 	//move the world's x coordinate
 	this.move = function(direction,speed){
-		//var newpos = this.xpos + (this.speed * direction);
-		//this.xpos = Math.max(this.limitxmin,Math.min(newpos,this.limitxmax));
+		var newpos = this.xpos + (speed * direction);
+		this.xpos = Math.max(this.limitxmin,Math.min(newpos,this.limitxmax));
+		//console.log(newpos,this.xpos);
+
 		for(var i = 0; i < this.layers.length; i++){
-			var newx = this.layers[i].xpos - ((speed * this.layers[i].scalex) * direction);
-			this.layers[i].xpos = newx;
+			var newx = this.layers[i].spritex + ((speed * this.layers[i].scalex) * direction);
+			this.layers[i].spritex = newx;
 		}
+		
+		//fixme there's a bug here - movement is hard coded, should be a percentage, otherwise ted moves slower the smaller the screen is
+
+		console.log(this.xpos);
 	};
 }
 
@@ -329,7 +359,7 @@ var ted = {
         //given an object with assumed attributes, draw it on the canvas
         drawOnCanvas: function(obj){
 			//image, start drawing from sprite at x, at y, sprite width, sprite height, draw on canvas at x, at y, width to draw this at, height
-			ted.ctx.drawImage(obj.sprite, 0, 0, obj.spritew, obj.spriteh, obj.xpos, obj.ypos, obj.w, obj.h);
+			ted.ctx.drawImage(obj.sprite, obj.spritex, obj.spritey, obj.spritew, obj.spriteh, obj.xpos, obj.ypos, obj.w, obj.h);
 		},
 		setupPlayer: function(){
 			ted.player = new PlayerObj();
