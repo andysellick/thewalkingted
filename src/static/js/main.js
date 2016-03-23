@@ -49,20 +49,27 @@ function PlayerObj(){
 	//contains: key pressed, animation frames, frame duration, end frame, direction
 	this.animations = [
 		[39, rightframeswalk, 50, tedframesmisc[0], 1],
-		[37, leftframeswalk, 50, tedframesmisc[1], -1]
+		[37, leftframeswalk, 50, tedframesmisc[1], -1],
+		[0, [rightframeswalk[1]], 50, rightframeswalk[1],1],
+		[0, [leftframeswalk[1]], 50, leftframeswalk[1],-1],
 	];
 	this.curranim = 0;
 	this.animationStart = 0;
 	this.currentFrame = 0;
 	this.maxFrames = 0;
 	this.walkdirection = 0;
-	this.speed = 10;
+	this.facing = 1; //facing left
+	this.speed = 0;
 	this.limitxmin = 0; //this is the window within which the character can move, outside of the world moves
 	this.limitxmax = 0;
-	this.jump = 0;
-	this.jumpby = 10;
-	this.jumpHeight = 100;
-	
+	this.jumping = 0; //flag to indicate whether we've left the ground
+	this.jumpBy = 0; //height to jump per frame
+	this.jumpUp = 1; //flag to prevent double jumping, 1 is okay to jump, 0 is should fall
+	this.jumpStart = 0; //height the jump started from
+	this.jumpHeight = 0; //maximum jump height
+	this.jumpSpeed = 20; //how fast jumping occurs
+	this.jumpTiming = 0;
+
 	this.init = function(){
 		var sizes = ted.general.calculateAspectRatio(this.idealw,this.idealh,ted.canvasw,ted.canvash / 2);
 		this.w = sizes[0];
@@ -77,6 +84,7 @@ function PlayerObj(){
 
 		this.speed = (this.w / 100) * 5; //base the speed on the width of the character, 5% is an arbitrarily chosen value that looks okay
 		this.jumpHeight = (this.h / 100) * 50;
+		this.jumpBy = this.jumpHeight / 10;
 	};
 
 	this.draw = function(){
@@ -85,31 +93,80 @@ function PlayerObj(){
 
 	//this is a bit clumsy but two keys need to cancel each other out
 	this.move = function(keys){
+		if(keys[38]){
+			if(this.jumping){
+				this.handleJump();
+			}
+			else {
+				this.initJump();
+			}
+		}
+		else {
+			this.stopJump();
+		}
+
 		if(keys[37] && keys[39]){ //both keys are pressed, don't move
 			this.walkdirection = 0;
 		}
 		else if(keys[37]){ //move right
 			this.walkdirection = 37;
+			this.facing = 0;
 		}
 		else if(keys[39]){ //move left
 			this.walkdirection = 39;
+			this.facing = 1;
 		}
 		else {
 			this.walkdirection = 0;
 		}
-		
-		if(keys[38] && this.jump === 0){
-			//console.log('up');
-			this.jump = Math.min(this.jumpHeight,this.jump + this.jumpby);
-			this.ypos -= this.jump;
-		}
-		
 		if(this.walkdirection){
 			this.doAnimation();
 		}
 		else {
 			this.clearAnimation();
 		}
+	};
+
+	this.handleJump = function(){
+		var newy = (this.ypos + this.h) - this.jumpBy;
+		if(this.jumpTiming < (new Date().getTime() - this.jumpSpeed)){
+			this.jumpTiming = new Date().getTime();
+			if(this.jumpUp){
+				if(newy > (this.jumpStart - this.jumpHeight)){ //this is confusing, remember y axis starts from 0 at the top of the canvas
+					this.ypos = this.ypos - this.jumpBy;
+				}
+				else {
+					this.jumpUp = 0;
+				}
+			}
+			else {
+				this.stopJump();
+			}
+		}
+	};
+
+	this.stopJump = function(){
+		if(this.jumping){
+			if(this.ypos + this.h < this.jumpStart){
+				this.ypos = Math.min(this.ypos + this.jumpBy, this.jumpStart - this.h);
+			}
+			else {
+				this.jumping = 0;
+				if(this.facing){
+					this.sprite = tedframesmisc[0];
+				}
+				else {
+					this.sprite = tedframesmisc[1];
+				}
+			}
+		}
+	};
+
+	this.initJump = function(){
+		this.clearAnimation();
+		this.jumping = 1;
+		this.jumpUp = 1;
+		this.jumpStart = this.ypos + this.h;
 	};
 
 	this.doAnimation = function(){
@@ -126,7 +183,6 @@ function PlayerObj(){
 		}
 		if(this.animationStart < (new Date().getTime() - this.curranim[2]) || this.animationStart === 0){ //if it's time to move to the next frame
 			this.moveCharacter();
-			//check and move x position
 			this.animationStart = new Date().getTime();
 			if(this.currentFrame < this.maxFrames){ //check if we need to loop back to the first frame
 				this.sprite = this.curranim[1][this.currentFrame];
@@ -162,7 +218,6 @@ function PlayerObj(){
 //object for the world
 function WorldObj(){
 	this.xpos = 0;
-	//this.speed = 10;
 	this.w = 0;
 	this.h = 0;
 	this.limitxmin = 0;
@@ -186,12 +241,8 @@ function WorldObj(){
 			sprite: worldimages[1],
 			spriteactualw: 5000,
 			spriteactualh: 167,
-			spritex: 0,
-			spritey: 0,
 			xpos: 0,
 			ypos: 0,
-			w: 0,
-			h: 0,
 			scalex: 1
 		},
 		{
@@ -199,12 +250,8 @@ function WorldObj(){
 			sprite: worldimages[2],
 			spriteactualw: 3000,
 			spriteactualh: 343,
-			spritex: 0,
-			spritey: 0,
 			xpos: 0,
 			ypos: 0,
-			w: 0,
-			h: 0,
 			scalex: 0.6
 		},
 		{
@@ -212,12 +259,8 @@ function WorldObj(){
 			sprite: worldimages[3],
 			spriteactualw: 3500,
 			spriteactualh: 280,
-			spritex: 0,
-			spritey: 0,
 			xpos: 0,
 			ypos: 0,
-			w: 0,
-			h: 0,
 			scalex: 0.7
 		},
 		{
@@ -225,12 +268,8 @@ function WorldObj(){
 			sprite: worldimages[4],
 			spriteactualw: 2500,
 			spriteactualh: 645,
-			spritex: 0,
-			spritey: 0,
 			xpos: 0,
 			ypos: 0,
-			w: 0,
-			h: 0,
 			scalex: 0.5
 		}
 	];
@@ -240,13 +279,12 @@ function WorldObj(){
 		for(var i = 0; i < this.layers.length; i++){
 			/*
 				layers are set to the same width and height of the canvas
-				the world is many times larger than the canvas
+				the world is many times larger than the canvas (currently 5x)
 				each layer moves at a different speed, the images displayed on them are an appropriate size for the speed, controlled by the scalex value, assuming a world size x5 of the canvas e.g.
-				- layer with scalex 1 is same size as the world, moves at 1x world speed, so needs an image that is 500% the width of the canvas
-				- layer with scalex 2 is same size as the world, moves at 2x world speed, so needs an image that is 1000% the width of the canvas
-			*/
+				- layer with scalex 1 is same size as the world, moves at 1x world speed, so needs an image that is 500% the width of the canvas, or the same width as the world
+				- layer with scalex 2 is same size as the world, moves at 2x world speed, so needs an image that is 1000% the width of the canvas, or twice the width of the world
+
 			//set size of each layer, relates to the overall world size using the scalex value
-			/*
 			this.layers[i].w = this.w * this.layers[i].scalex + (ted.canvasw * (1 - this.layers[i].scalex)); //this extra addition makes all layers finish together at the right edge of the canvas
 			this.layers[i].h = this.h * this.layers[i].scaley;
 			*/
@@ -284,16 +322,21 @@ function WorldObj(){
 		this.xpos = Math.max(this.limitxmin,Math.min(newpos,this.limitxmax));
 		//console.log(newpos,this.xpos);
 
+		//fixme bug here - speed seems proportional to screen size but wrong - small screen very slow movement
 		for(var i = 0; i < this.layers.length; i++){
-			var newx = this.layers[i].spritex + ((speed * this.layers[i].scalex) * direction);
+			var newx = this.layers[i].spritex + ((speed * direction) * this.layers[i].scalex);
+			/*
+			if(i == 1){
+				console.log(this.layers[i].spritex,'speed:',speed,'dir:',direction,'scale:',this.layers[i].scalex,'newx:',newx,this.xpos);
+			}
+			*/
 			this.layers[i].spritex = newx;
 		}
-		
-		//fixme there's a bug here - movement is hard coded, should be a percentage, otherwise ted moves slower the smaller the screen is
-
-		console.log(this.xpos);
 	};
 }
+
+
+
 
 (function( window, undefined ) {
 var ted = {
@@ -384,7 +427,7 @@ var ted = {
     game: {
 		gameLoop: function(){
 			ted.player.move(ted.keyState);
-			ted.general.clearCanvas();
+			ted.general.clearCanvas(); //don't need to do this if we're completely overdrawing the canvas
 			ted.world.draw(4);
 			ted.world.draw(3);
 			ted.world.draw(2);
