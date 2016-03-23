@@ -1,12 +1,15 @@
 /* JShint config */
 /* globals ted */
 
+var worldsize = 5;
+
 var loaders = [];
 var imgpath = 'static/img/';
 var tedframesmisc = ['right_stand.png','left_stand.png'];
 var leftframeswalk = ['left_walk_1.png','left_walk_2.png','left_walk_3.png','left_walk_4.png','left_walk_5.png','left_walk_6.png','left_walk_7.png','left_walk_8.png','left_walk_9.png','left_walk_10.png','left_walk_11.png','left_walk_12.png','left_walk_13.png'];
 var rightframeswalk = ['right_walk_1.png','right_walk_2.png','right_walk_3.png','right_walk_4.png','right_walk_5.png','right_walk_6.png','right_walk_7.png','right_walk_8.png','right_walk_9.png','right_walk_10.png','right_walk_11.png','right_walk_12.png','right_walk_13.png'];
 var worldimages = ['layer_1.png','layer_2.png','layer_3.png','layer_4.png','layer_5.png'];
+var objectimages = ['chair.png','clock.png','tv.png','camera.png'];
 
 //preload images
 function loadFile(src,array,num) {
@@ -30,6 +33,7 @@ callAllPreloads(tedframesmisc,imgpath);
 callAllPreloads(leftframeswalk,imgpath);
 callAllPreloads(rightframeswalk,imgpath);
 callAllPreloads(worldimages,imgpath + 'world/');
+callAllPreloads(objectimages,imgpath + 'objects/');
 
 //general object for player
 function PlayerObj(){
@@ -319,7 +323,7 @@ function WorldObj(){
 	//move the world's x coordinate
 	this.move = function(direction,speed){
 		var newpos = this.xpos + (speed * direction);
-		this.xpos = Math.max(this.limitxmin,Math.min(newpos,this.limitxmax));
+		this.xpos = newpos; //Math.max(this.limitxmin,Math.min(newpos,this.limitxmax));
 		//console.log(newpos,this.xpos);
 
 		//fixme bug here - speed seems proportional to screen size but wrong - small screen very slow movement
@@ -335,6 +339,81 @@ function WorldObj(){
 	};
 }
 
+//pass through img, width and height of image, % position in the world, and values for the percent size the object should appear on the canvas
+function ObjObj(sprite,idealw,idealh,originalpos,scalex,scaley){
+	this.originalpos = originalpos;
+	this.worldpos = 0;
+	this.xpos = 0;
+	this.ypos = 0;
+	this.idealw = idealw;
+	this.idealh = idealh;
+	this.w = 0;
+	this.h = 0;
+	this.sprite = sprite;
+	this.spritex = 0;
+	this.spritey = 0;
+	this.spritew = 0;
+	this.spriteh = 0;
+	this.scalex = scalex;
+	this.scaley = scaley;
+	this.animateSpeed = 50;
+	this.animateDir = 0;
+	this.animateTimer = 0;
+	this.animateBy = 0;
+
+	this.init = function(){
+		var sizes = ted.general.calculateAspectRatio(this.idealw,this.idealh,(ted.canvasw / 100) * this.scalex,(ted.canvash / 100) * this.scaley);
+		this.w = sizes[0];
+		this.h = sizes[1];
+
+		this.worldpos = (ted.world.w / 100) * this.originalpos; //store where it is in the world
+		this.ypos = (ted.canvash / 2) - (this.h / 2);
+
+		this.spritew = this.idealw;
+		this.spriteh = this.idealh;
+
+		this.miny = this.ypos - (this.h / 4);
+		this.maxy = this.ypos + (this.h / 4);
+		this.animateBy = this.h / 20;
+	};
+
+	this.doActions = function(){
+		//fixme seems like there's some kind of bug around here to do with size of the world and size of the graphics
+		this.xpos = this.worldpos - ted.world.xpos;
+		if(this.xpos < ted.canvasw && this.xpos + this.w > 0){
+			this.animate();
+			this.draw();
+		}
+	};
+
+	this.draw = function(){
+		//image, start drawing from sprite at x, at y, sprite width, sprite height, draw on canvas at x, at y, width to draw this at, height
+		//ted.ctx.drawImage(obj.sprite, obj.spritex, obj.spritey, obj.spritew, obj.spriteh, obj.xpos, obj.ypos, obj.w, obj.h);
+		ted.general.drawOnCanvas(this);
+	};
+	
+	this.animate = function(){
+		if(this.animateTimer < (new Date().getTime() - this.animateSpeed)){
+			this.animateTimer = new Date().getTime();
+			if(this.animateDir){
+				if(this.ypos > this.miny){
+					this.ypos -= this.animateBy;
+				}
+				else {
+					this.animateDir = 0;
+				}
+			}
+			else {
+				if(this.ypos < this.maxy){
+					this.ypos += this.animateBy;
+				}
+				else {
+					this.animateDir = 1;
+				}
+			}
+		}
+	};
+}
 
 
 
@@ -349,6 +428,7 @@ var ted = {
 	prevcanvasw: 0, //used to 'remember' what the previous canvas size was, for purposes of recalculation
 	prevcanvash: 0,
 	player: 0,
+	objects: [],
 	keyState: [],
 
     general: {
@@ -364,6 +444,7 @@ var ted = {
                 ted.prevcanvash = ted.canvash;
 				ted.general.setupPlayer();
 				ted.general.setupWorld();
+				ted.general.setupObjects();
 	            ted.game.gameLoop();
             }
         },
@@ -395,6 +476,9 @@ var ted = {
 			ted.world.w = ted.canvasw * 5;
 			ted.world.h = ted.canvash;
 			ted.world.init();
+			for(var m = 0; m < ted.objects.length; m++){
+				ted.objects[m].init();
+			}
 		},
         clearCanvas: function(){
             ted.ctx.clearRect(0, 0, ted.canvas.width, ted.canvas.height); //clear the canvas
@@ -419,9 +503,23 @@ var ted = {
 		},
 		setupWorld: function(){
 			ted.world = new WorldObj();
-			ted.world.w = ted.canvasw * 5;
+			ted.world.w = ted.canvasw * worldsize;
 			ted.world.h = ted.canvash;
 			ted.world.init();
+		},
+		setupObjects: function(){
+			var obj = new ObjObj(objectimages[0],140,176,25,30,30); //chair
+			obj.init();
+			ted.objects.push(obj);
+			var obj2 = new ObjObj(objectimages[1],75,78,50,15,15); //clock
+			obj2.init();
+			ted.objects.push(obj2);
+			var obj3 = new ObjObj(objectimages[2],207,130,75,20,20); //tv
+			obj3.init();
+			ted.objects.push(obj3);
+			var obj4 = new ObjObj(objectimages[3],42,25,95,5,5); //camera
+			obj4.init();
+			ted.objects.push(obj4);
 		}
     },
     game: {
@@ -432,6 +530,9 @@ var ted = {
 			ted.world.draw(3);
 			ted.world.draw(2);
 			ted.world.draw(1);
+			for(var z = 0; z < ted.objects.length; z++){
+				ted.objects[z].doActions();
+			}
 			ted.player.draw();
 			ted.world.draw(0);
 			setTimeout(ted.game.gameLoop,20);
