@@ -39,12 +39,12 @@ callAllPreloads(objectimages,imgpath + 'objects/');
 function PlayerObj(){
 	this.xpos = 100;
 	this.ypos = 100;
-	this.idealw = 500;
+	this.idealw = 350;
 	this.idealh = 504;
 	this.w = 0;
 	this.h = 0;
 	this.sprite = tedframesmisc[0];
-	this.spritew = 500;
+	this.spritew = 350;
 	this.spriteh = 504;
 	this.spritex = 0;
 	this.spritey = 0;
@@ -356,6 +356,7 @@ function ObjObj(sprite,idealw,idealh,originalpos,scalex,scaley){
 	this.spriteh = 0;
 	this.scalex = scalex;
 	this.scaley = scaley;
+	this.animate = 1;
 	this.animateSpeed = 50;
 	this.animateDir = 0;
 	this.animateTimer = 0;
@@ -374,15 +375,23 @@ function ObjObj(sprite,idealw,idealh,originalpos,scalex,scaley){
 
 		this.miny = this.ypos - (this.h / 4);
 		this.maxy = this.ypos + (this.h / 4);
-		this.animateBy = this.h / 20;
+		this.animateBy = this.h / 30;
 	};
 
 	this.doActions = function(){
 		//fixme seems like there's some kind of bug around here to do with size of the world and size of the graphics
 		this.xpos = this.worldpos - ted.world.xpos;
-		if(this.xpos < ted.canvasw && this.xpos + this.w > 0){
-			this.animate();
+		if(this.xpos < ted.canvasw && this.xpos + this.w > 0){ //if it's on screen
+			this.collision();
+			this.doAnimation();
 			this.draw();
+		}
+	};
+
+	this.collision = function(){
+		if(ted.game.checkPlayerCollision(this,ted.player)){
+			console.log('hit');
+			this.animate = 0;
 		}
 	};
 
@@ -392,23 +401,25 @@ function ObjObj(sprite,idealw,idealh,originalpos,scalex,scaley){
 		ted.general.drawOnCanvas(this);
 	};
 	
-	this.animate = function(){
-		if(this.animateTimer < (new Date().getTime() - this.animateSpeed)){
-			this.animateTimer = new Date().getTime();
-			if(this.animateDir){
-				if(this.ypos > this.miny){
-					this.ypos -= this.animateBy;
+	this.doAnimation = function(){
+		if(this.animate){
+			if(this.animateTimer < (new Date().getTime() - this.animateSpeed)){
+				this.animateTimer = new Date().getTime();
+				if(this.animateDir){
+					if(this.ypos > this.miny){
+						this.ypos -= this.animateBy;
+					}
+					else {
+						this.animateDir = 0;
+					}
 				}
 				else {
-					this.animateDir = 0;
-				}
-			}
-			else {
-				if(this.ypos < this.maxy){
-					this.ypos += this.animateBy;
-				}
-				else {
-					this.animateDir = 1;
+					if(this.ypos < this.maxy){
+						this.ypos += this.animateBy;
+					}
+					else {
+						this.animateDir = 1;
+					}
 				}
 			}
 		}
@@ -523,6 +534,27 @@ var ted = {
 		}
     },
     game: {
+		//generic collision checking function between any given object and the player
+		checkPlayerCollision: function(obj,tp){
+		    //rule out any possible collisions, remembering that all y numbers are inverted on canvas
+		    //player bottom edge is higher than object top edge
+		    if(tp.ypos + tp.h < obj.ypos){
+		        return(0);
+			}
+		    //player top edge is lower than obj bottom edge
+		    if(tp.ypos > obj.ypos + obj.h){
+		        return(0);
+			}
+		    //player left edge is to the right of obj right edge
+		    if(tp.xpos > obj.xpos + obj.w){
+		        return(0);
+			}
+		    //player right edge is to the left of obj left edge
+		    if(tp.xpos + tp.w < obj.xpos){
+		        return(0);
+			}
+		    return(1); //collision
+		},
 		gameLoop: function(){
 			ted.player.move(ted.keyState);
 			ted.general.clearCanvas(); //don't need to do this if we're completely overdrawing the canvas
