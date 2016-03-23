@@ -298,14 +298,13 @@ function WorldObj(){
 				this.layers[i].spritey = 0;
 			}
 
-
 			var perc = ((ted.canvasw / this.w) * 100) / this.layers[i].scalex; //this is the percentage of the layer image we need to display
 			this.layers[i].spritew = ((this.layers[i].spriteactualw / 100) * perc) ; //this is the actual px of the image we need to display
 			this.layers[i].spriteh = this.layers[i].spriteactualh;
 
 			var tmp = this.w * this.layers[i].scalex; //actual size of the image on this layer
-			var tmp2 = (tmp / this.layers[i].spriteactualw) * 100;
-			var tmp3 = (this.layers[i].spriteactualh / 100) * tmp2;
+			var tmp2 = (tmp / this.layers[i].spriteactualw) * 100; //percentage size diff between original layer image w and displayed
+			var tmp3 = (this.layers[i].spriteactualh / 100) * tmp2; //apply same percentage change to height to find layer height
 			this.layers[i].h = tmp3;
 			this.layers[i].w = ted.canvasw;
 
@@ -329,6 +328,7 @@ function WorldObj(){
 		//fixme bug here - speed seems proportional to screen size but wrong - small screen very slow movement
 		for(var i = 0; i < this.layers.length; i++){
 			var newx = this.layers[i].spritex + ((speed * direction) * this.layers[i].scalex);
+			newx = this.xpos * this.layers[i].scalex;
 			/*
 			if(i == 1){
 				console.log(this.layers[i].spritex,'speed:',speed,'dir:',direction,'scale:',this.layers[i].scalex,'newx:',newx,this.xpos);
@@ -435,7 +435,7 @@ var ted = {
 	canvasw: 0,
 	canvash: 0,
 	idealw: 1000,
-	idealh: 600,
+	idealh: 645,
 	prevcanvasw: 0, //used to 'remember' what the previous canvas size was, for purposes of recalculation
 	prevcanvash: 0,
 	player: 0,
