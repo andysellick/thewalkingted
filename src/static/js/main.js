@@ -1,16 +1,42 @@
 /* JShint config */
-/* globals ted */
+/* globals Deferred, orientation, ted, PlayerObj, WorldObj, ObjObj */
 
-var worldsize = 5;
-
+var worldsize = 7;
 var loaders = [];
 var imgpath = 'static/img/';
-var tedframesmisc = ['right_stand.png','left_stand.png'];
-var leftframeswalk = ['left_walk_1.png','left_walk_2.png','left_walk_3.png','left_walk_4.png','left_walk_5.png','left_walk_6.png','left_walk_7.png','left_walk_8.png','left_walk_9.png','left_walk_10.png','left_walk_11.png','left_walk_12.png','left_walk_13.png'];
-var rightframeswalk = ['right_walk_1.png','right_walk_2.png','right_walk_3.png','right_walk_4.png','right_walk_5.png','right_walk_6.png','right_walk_7.png','right_walk_8.png','right_walk_9.png','right_walk_10.png','right_walk_11.png','right_walk_12.png','right_walk_13.png'];
-var worldimages = ['layer_1.png','layer_2.png','layer_3.png','layer_4.png','layer_5.png'];
-var objectimages = ['chair.png','clock.png','tv.png','camera.png'];
 
+var allimages = [
+	{
+		'name': 'tedframesmisc',
+		'images': ['right_stand.png','left_stand.png'],
+		'dir': 'character'
+	},
+	{
+		'name': 'leftframeswalk',
+		'images': ['left_walk_1.png','left_walk_2.png','left_walk_3.png','left_walk_4.png','left_walk_5.png','left_walk_6.png','left_walk_7.png','left_walk_8.png','left_walk_9.png','left_walk_10.png','left_walk_11.png','left_walk_12.png','left_walk_13.png'],
+		'dir': 'character'
+	},
+	{
+		'name': 'rightframeswalk',
+		'images': ['right_walk_1.png','right_walk_2.png','right_walk_3.png','right_walk_4.png','right_walk_5.png','right_walk_6.png','right_walk_7.png','right_walk_8.png','right_walk_9.png','right_walk_10.png','right_walk_11.png','right_walk_12.png','right_walk_13.png'],
+		'dir': 'character'
+	},
+	{
+		'name': 'worldimages',
+		'images': ['layer_1.png','layer_2.png','layer_3.png','layer_4.png','layer_5.png'],
+		'dir': 'world'
+	},
+	{
+		'name': 'objectimages',
+		'images': ['chair.png','clock.png','tv.png','camera.png'],
+		'dir': 'objects'
+	},
+];
+
+var imageloadprogress = 0;
+var imageloadtotal = 0;
+
+/*
 //preload images
 function loadFile(src,array,num) {
     var deferred = $.Deferred();
@@ -18,415 +44,38 @@ function loadFile(src,array,num) {
 	sprite.onload = function() {
 		array[num] = sprite;
 		deferred.resolve();
+		imageloadprogress++;
+		document.getElementById('loading').style.width = (imageloadprogress / imageloadtotal) * 100 + '%';
 	};
 	sprite.src = src;
     return deferred.promise();
 }
+*/
+
+//preload images
+function loadFile(src,array,num){
+	var deferred = new Deferred();
+	var sprite = new Image();
+	sprite.onload = function() {
+		array[num] = sprite;
+		deferred.resolve();
+		imageloadprogress++;
+		document.getElementById('loading').style.width = (imageloadprogress / imageloadtotal) * 100 + '%';
+	};
+	sprite.src = src;
+    return deferred.promise();
+}
+
 //loop through and call all the preload images
 function callAllPreloads(array,dir){
     for(var z = 0; z < array.length; z++){
         loaders.push(loadFile(dir + array[z], array, z));
     }
 }
-//fixme at some point having all of these simply in a big structure would mean we could loop through it all in one call rather than all these individual ones
-callAllPreloads(tedframesmisc,imgpath);
-callAllPreloads(leftframeswalk,imgpath);
-callAllPreloads(rightframeswalk,imgpath);
-callAllPreloads(worldimages,imgpath + 'world/');
-callAllPreloads(objectimages,imgpath + 'objects/');
-
-//general object for player
-function PlayerObj(){
-	this.xpos = 100;
-	this.ypos = 100;
-	this.idealw = 350;
-	this.idealh = 504;
-	this.w = 0;
-	this.h = 0;
-	this.sprite = tedframesmisc[0];
-	this.spritew = 350;
-	this.spriteh = 504;
-	this.spritex = 0;
-	this.spritey = 0;
-	this.walkrightframes = [];
-	this.walkleftframes = [];
-	//contains: key pressed, animation frames, frame duration, end frame, direction
-	this.animations = [
-		[39, rightframeswalk, 50, tedframesmisc[0], 1],
-		[37, leftframeswalk, 50, tedframesmisc[1], -1],
-		[0, [rightframeswalk[1]], 50, rightframeswalk[1],1],
-		[0, [leftframeswalk[1]], 50, leftframeswalk[1],-1],
-	];
-	this.curranim = 0;
-	this.animationStart = 0;
-	this.currentFrame = 0;
-	this.maxFrames = 0;
-	this.walkdirection = 0;
-	this.facing = 1; //facing left
-	this.speed = 0;
-	this.limitxmin = 0; //this is the window within which the character can move, outside of the world moves
-	this.limitxmax = 0;
-	this.jumping = 0; //flag to indicate whether we've left the ground
-	this.jumpBy = 0; //height to jump per frame
-	this.jumpUp = 1; //flag to prevent double jumping, 1 is okay to jump, 0 is should fall
-	this.jumpStart = 0; //height the jump started from
-	this.jumpHeight = 0; //maximum jump height
-	this.jumpSpeed = 20; //how fast jumping occurs
-	this.jumpTiming = 0;
-
-	this.init = function(){
-		var sizes = ted.general.calculateAspectRatio(this.idealw,this.idealh,ted.canvasw,ted.canvash / 2);
-		this.w = sizes[0];
-		this.h = sizes[1];
-
-		var posx = (this.xpos / ted.prevcanvasw) * 100;
-		this.xpos = (ted.canvasw / 100) * posx;
-		this.ypos = ted.canvash - this.h;
-
-		this.limitxmin = (ted.canvasw / 100) * 10;
-		this.limitxmax = (ted.canvasw / 100) * 40;
-
-		this.speed = (this.w / 100) * 5; //base the speed on the width of the character, 5% is an arbitrarily chosen value that looks okay
-		this.jumpHeight = (this.h / 100) * 50;
-		this.jumpBy = this.jumpHeight / 10;
-	};
-
-	this.draw = function(){
-		ted.general.drawOnCanvas(this);
-	};
-
-	//this is a bit clumsy but two keys need to cancel each other out
-	this.move = function(keys){
-		if(keys[38]){
-			if(this.jumping){
-				this.handleJump();
-			}
-			else {
-				this.initJump();
-			}
-		}
-		else {
-			this.stopJump();
-		}
-
-		if(keys[37] && keys[39]){ //both keys are pressed, don't move
-			this.walkdirection = 0;
-		}
-		else if(keys[37]){ //move right
-			this.walkdirection = 37;
-			this.facing = 0;
-		}
-		else if(keys[39]){ //move left
-			this.walkdirection = 39;
-			this.facing = 1;
-		}
-		else {
-			this.walkdirection = 0;
-		}
-		if(this.walkdirection){
-			this.doAnimation();
-		}
-		else {
-			this.clearAnimation();
-		}
-	};
-
-	this.handleJump = function(){
-		var newy = (this.ypos + this.h) - this.jumpBy;
-		if(this.jumpTiming < (new Date().getTime() - this.jumpSpeed)){
-			this.jumpTiming = new Date().getTime();
-			if(this.jumpUp){
-				if(newy > (this.jumpStart - this.jumpHeight)){ //this is confusing, remember y axis starts from 0 at the top of the canvas
-					this.ypos = this.ypos - this.jumpBy;
-				}
-				else {
-					this.jumpUp = 0;
-				}
-			}
-			else {
-				this.stopJump();
-			}
-		}
-	};
-
-	this.stopJump = function(){
-		if(this.jumping){
-			if(this.ypos + this.h < this.jumpStart){
-				this.ypos = Math.min(this.ypos + this.jumpBy, this.jumpStart - this.h);
-			}
-			else {
-				this.jumping = 0;
-				if(this.facing){
-					this.sprite = tedframesmisc[0];
-				}
-				else {
-					this.sprite = tedframesmisc[1];
-				}
-			}
-		}
-	};
-
-	this.initJump = function(){
-		this.clearAnimation();
-		this.jumping = 1;
-		this.jumpUp = 1;
-		this.jumpStart = this.ypos + this.h;
-	};
-
-	this.doAnimation = function(){
-		if(this.curranim === 0){ //look up and store the required animation
-			for(var i = 0; i < this.animations.length; i++){
-				if(this.animations[i][0] === this.walkdirection){ //the key pressed matches this action, so do it
-					this.curranim = this.animations[i];
-					this.currentFrame = 0;
-					this.maxFrames = this.curranim[1].length; //store some data about this animation
-					//this.animationStart = new Date().getTime(); //record now, the time we started the animation
-					break;
-				}
-			}
-		}
-		if(this.animationStart < (new Date().getTime() - this.curranim[2]) || this.animationStart === 0){ //if it's time to move to the next frame
-			this.moveCharacter();
-			this.animationStart = new Date().getTime();
-			if(this.currentFrame < this.maxFrames){ //check if we need to loop back to the first frame
-				this.sprite = this.curranim[1][this.currentFrame];
-				this.currentFrame++;
-			}
-			else {
-				this.currentFrame = 0;
-			}
-		}
-	};
-
-	//move the character on the screen within the limits of the bounding box, if outside, move the world
-	this.moveCharacter = function(){
-		var newxpos = this.xpos + (this.speed * this.curranim[4]);
-		if(newxpos < this.limitxmax && newxpos > this.limitxmin){
-			this.xpos = newxpos;
-		}
-		else {
-			ted.world.move(this.curranim[4],this.speed);
-		}
-	};
-
-	//clear any current animation, using the information stored within it
-	this.clearAnimation = function(){
-		if(this.curranim){
-			this.sprite = this.curranim[3];
-			this.animationStart = 0;
-			this.curranim = 0;
-		}
-	};
+for(var im = 0; im < allimages.length; im++){
+	imageloadtotal += allimages[im].images.length;
+	callAllPreloads(allimages[im].images, imgpath + allimages[im].dir + '/');
 }
-
-//object for the world
-function WorldObj(){
-	this.xpos = 0;
-	this.w = 0;
-	this.h = 0;
-	this.limitxmin = 0;
-	this.limitxmax = 500;
-	this.layers = [
-		{
-			name: 'foreground',
-			sprite: worldimages[0],
-			spriteactualw: 10000,
-			spriteactualh: 56,
-			spritex: 0,
-			spritey: 0,
-			xpos: 0,
-			ypos: 0,
-			w: 0,
-			h: 0,
-			scalex: 2
-		},
-		{
-			name: 'main',
-			sprite: worldimages[1],
-			spriteactualw: 5000,
-			spriteactualh: 167,
-			xpos: 0,
-			ypos: 0,
-			scalex: 1
-		},
-		{
-			name: 'pyramids',
-			sprite: worldimages[2],
-			spriteactualw: 3000,
-			spriteactualh: 343,
-			xpos: 0,
-			ypos: 0,
-			scalex: 0.6
-		},
-		{
-			name: 'hills',
-			sprite: worldimages[3],
-			spriteactualw: 3500,
-			spriteactualh: 280,
-			xpos: 0,
-			ypos: 0,
-			scalex: 0.7
-		},
-		{
-			name: 'sky',
-			sprite: worldimages[4],
-			spriteactualw: 2500,
-			spriteactualh: 645,
-			xpos: 0,
-			ypos: 0,
-			scalex: 0.5
-		}
-	];
-
-	this.init = function(){
-		this.limitxmax = this.w;
-		for(var i = 0; i < this.layers.length; i++){
-			/*
-				layers are set to the same width and height of the canvas
-				the world is many times larger than the canvas (currently 5x)
-				each layer moves at a different speed, the images displayed on them are an appropriate size for the speed, controlled by the scalex value, assuming a world size x5 of the canvas e.g.
-				- layer with scalex 1 is same size as the world, moves at 1x world speed, so needs an image that is 500% the width of the canvas, or the same width as the world
-				- layer with scalex 2 is same size as the world, moves at 2x world speed, so needs an image that is 1000% the width of the canvas, or twice the width of the world
-
-			//set size of each layer, relates to the overall world size using the scalex value
-			this.layers[i].w = this.w * this.layers[i].scalex + (ted.canvasw * (1 - this.layers[i].scalex)); //this extra addition makes all layers finish together at the right edge of the canvas
-			this.layers[i].h = this.h * this.layers[i].scaley;
-			*/
-			if(!this.xpos){ //only do this on page load
-				var posx = (this.layers[i].xpos / ted.prevcanvasw) * 100;
-				this.layers[i].spritex = (ted.canvasw / 100) * posx;
-				this.layers[i].spritey = 0;
-			}
-
-			var perc = ((ted.canvasw / this.w) * 100) / this.layers[i].scalex; //this is the percentage of the layer image we need to display
-			this.layers[i].spritew = ((this.layers[i].spriteactualw / 100) * perc) ; //this is the actual px of the image we need to display
-			this.layers[i].spriteh = this.layers[i].spriteactualh;
-
-			var tmp = this.w * this.layers[i].scalex; //actual size of the image on this layer
-			var tmp2 = (tmp / this.layers[i].spriteactualw) * 100; //percentage size diff between original layer image w and displayed
-			var tmp3 = (this.layers[i].spriteactualh / 100) * tmp2; //apply same percentage change to height to find layer height
-			this.layers[i].h = tmp3;
-			this.layers[i].w = ted.canvasw;
-
-			//draw each one from the bottom of the canvas, fixme may change
-			this.layers[i].ypos = ted.canvash - this.layers[i].h;
-		}
-	};
-
-	this.draw = function(layer){
-		//image, start drawing from sprite at x, at y, sprite width, sprite height, draw on canvas at x, at y, width to draw this at, height
-		//ted.ctx.drawImage(obj.sprite, obj.spritex, obj.spritey, obj.spritew, obj.spriteh, obj.xpos, obj.ypos, obj.w, obj.h);
-		ted.general.drawOnCanvas(this.layers[layer]);
-	};
-
-	//move the world's x coordinate
-	this.move = function(direction,speed){
-		var newpos = this.xpos + (speed * direction);
-		this.xpos = newpos; //Math.max(this.limitxmin,Math.min(newpos,this.limitxmax));
-		//console.log(newpos,this.xpos);
-
-		//fixme bug here - speed seems proportional to screen size but wrong - small screen very slow movement
-		for(var i = 0; i < this.layers.length; i++){
-			var newx = this.layers[i].spritex + ((speed * direction) * this.layers[i].scalex);
-			newx = this.xpos * this.layers[i].scalex;
-			/*
-			if(i == 1){
-				console.log(this.layers[i].spritex,'speed:',speed,'dir:',direction,'scale:',this.layers[i].scalex,'newx:',newx,this.xpos);
-			}
-			*/
-			this.layers[i].spritex = newx;
-		}
-	};
-}
-
-//pass through img, width and height of image, % position in the world, and values for the percent size the object should appear on the canvas
-function ObjObj(sprite,idealw,idealh,originalpos,scalex,scaley){
-	this.originalpos = originalpos;
-	this.worldpos = 0;
-	this.xpos = 0;
-	this.ypos = 0;
-	this.idealw = idealw;
-	this.idealh = idealh;
-	this.w = 0;
-	this.h = 0;
-	this.sprite = sprite;
-	this.spritex = 0;
-	this.spritey = 0;
-	this.spritew = 0;
-	this.spriteh = 0;
-	this.scalex = scalex;
-	this.scaley = scaley;
-	this.animate = 1;
-	this.animateSpeed = 50;
-	this.animateDir = 0;
-	this.animateTimer = 0;
-	this.animateBy = 0;
-
-	this.init = function(){
-		var sizes = ted.general.calculateAspectRatio(this.idealw,this.idealh,(ted.canvasw / 100) * this.scalex,(ted.canvash / 100) * this.scaley);
-		this.w = sizes[0];
-		this.h = sizes[1];
-
-		this.worldpos = (ted.world.w / 100) * this.originalpos; //store where it is in the world
-		this.ypos = (ted.canvash / 2) - (this.h / 2);
-
-		this.spritew = this.idealw;
-		this.spriteh = this.idealh;
-
-		this.miny = this.ypos - (this.h / 4);
-		this.maxy = this.ypos + (this.h / 4);
-		this.animateBy = this.h / 30;
-	};
-
-	this.doActions = function(){
-		//fixme seems like there's some kind of bug around here to do with size of the world and size of the graphics
-		this.xpos = this.worldpos - ted.world.xpos;
-		if(this.xpos < ted.canvasw && this.xpos + this.w > 0){ //if it's on screen
-			this.collision();
-			this.doAnimation();
-			this.draw();
-		}
-	};
-
-	this.collision = function(){
-		if(ted.game.checkPlayerCollision(this,ted.player)){
-			console.log('hit');
-			this.animate = 0;
-		}
-	};
-
-	this.draw = function(){
-		//image, start drawing from sprite at x, at y, sprite width, sprite height, draw on canvas at x, at y, width to draw this at, height
-		//ted.ctx.drawImage(obj.sprite, obj.spritex, obj.spritey, obj.spritew, obj.spriteh, obj.xpos, obj.ypos, obj.w, obj.h);
-		ted.general.drawOnCanvas(this);
-	};
-	
-	this.doAnimation = function(){
-		if(this.animate){
-			if(this.animateTimer < (new Date().getTime() - this.animateSpeed)){
-				this.animateTimer = new Date().getTime();
-				if(this.animateDir){
-					if(this.ypos > this.miny){
-						this.ypos -= this.animateBy;
-					}
-					else {
-						this.animateDir = 0;
-					}
-				}
-				else {
-					if(this.ypos < this.maxy){
-						this.ypos += this.animateBy;
-					}
-					else {
-						this.animateDir = 1;
-					}
-				}
-			}
-		}
-	};
-}
-
-
 
 (function( window, undefined ) {
 var ted = {
@@ -436,37 +85,75 @@ var ted = {
 	canvash: 0,
 	idealw: 1000,
 	idealh: 645,
+	gameloopvar: 1,
 	prevcanvasw: 0, //used to 'remember' what the previous canvas size was, for purposes of recalculation
 	prevcanvash: 0,
 	player: 0,
 	objects: [],
 	keyState: [],
+	framecount: 0,
+	frametime: 0,
+	debug: 0, //draws FPS and floor lines, massively reduces performance as well
+	debugmsg: '',
 
     general: {
         init: function(){
             ted.canvas = document.getElementById('canvas');
             if(!ted.canvas.getContext){
-                $('#canvas').html('Your browser does not support canvas. Sorry.');
+                document.getElementById('canvas').innerHTML = 'Your browser does not support canvas. Sorry.';
             }
             else {
                 ted.ctx = ted.canvas.getContext('2d');
                 this.initCanvasSize();
                 ted.prevcanvasw = ted.canvasw;
                 ted.prevcanvash = ted.canvash;
-				ted.general.setupPlayer();
 				ted.general.setupWorld();
+				ted.general.setupPlayer();
 				ted.general.setupObjects();
-	            ted.game.gameLoop();
+				ted.general.setupControls();
+	            //setInterval(ted.game.gameLoop,500); //fixme should have variable to control
+	            //http://www.playmycode.com/blog/2011/08/building-a-game-mainloop-in-javascript/
+	            var animFrame = window.requestAnimationFrame ||
+					window.webkitRequestAnimationFrame ||
+					window.mozRequestAnimationFrame    ||
+					window.oRequestAnimationFrame      ||
+					window.msRequestAnimationFrame     ||
+					null ;
+				if(animFrame !== null){
+					var recursiveAnim = function() {
+						ted.game.gameLoop();
+						animFrame(recursiveAnim);
+					};
+					animFrame(recursiveAnim);
+				}
+				else {
+					setInterval(ted.game.gameLoop,1000 / 60);
+				}
             }
         },
         //initialise the size of the canvas based on the ideal aspect ratio and the size of the parent element
 		initCanvasSize: function(){
-			var parentel = $('#canvas').parent();
+			var parentel = document.getElementById('canvasparent');
 			//resize the canvas to maintain aspect ratio depending on screen size
-			var sizes = ted.general.calculateAspectRatio(ted.idealw,ted.idealh,parentel.width(),parentel.height());
+			//var sizes = ted.general.calculateAspectRatio(ted.idealw,ted.idealh,parentel.width(),parentel.height());
+			var sizes = ted.general.calculateAspectRatio(ted.idealw,ted.idealh,parentel.offsetWidth,parentel.offsetHeight);
 			ted.canvas.width = ted.canvasw = sizes[0];
 			ted.canvas.height = ted.canvash = sizes[1];
-
+			
+			//check to see if the screen is rotated wrong on a mobile device
+			if(parentel.offsetHeight > parentel.offsetWidth){
+				ted.general.addClass(document.getElementById('mobile'),'shown'); //show the rotation message
+				ted.gameloopvar = 0; //pause the game
+			}
+			else {
+				ted.general.removeClass(document.getElementById('mobile'),'shown');
+				ted.gameloopvar = 1;
+			}
+			/*
+			//fixme what if the canvas didn't have a fixed aspect ratio?
+			ted.canvas.width = ted.canvasw = parentel.width();
+			ted.canvas.height = ted.canvash = parentel.height();
+			*/
         },
         //given a width and height representing an aspect ratio, and the size of the containing thing, return the largest w and h matching that aspect ratio
 		calculateAspectRatio: function(idealw,idealh,parentw,parenth){
@@ -478,62 +165,151 @@ var ted = {
 			var h = (w / idealw) * idealh;
 			return([w,h]);
 		},
-        //fixme this will contain resizing for all the elements as well
+        //resize the canvas and call init on all the elements as well
         resizeCanvas: function(){
 			ted.prevcanvasw = ted.canvasw;
 			ted.prevcanvash = ted.canvash;
 			ted.general.initCanvasSize();
-			ted.player.init();
-			ted.world.w = ted.canvasw * 5;
-			ted.world.h = ted.canvash;
 			ted.world.init();
+			ted.player.init();
 			for(var m = 0; m < ted.objects.length; m++){
 				ted.objects[m].init();
 			}
 		},
         clearCanvas: function(){
+			/*
             ted.ctx.clearRect(0, 0, ted.canvas.width, ted.canvas.height); //clear the canvas
+            //fixme this is just debug to clear out non-graphics drawn on the canvas
+            var w = ted.canvas.width;
+            ted.canvas.width = 1;
+            ted.canvas.width = w;
+            */
+            ted.canvas.width = ted.canvas.width; //this is apparently a hack but seems to work
         },
         //given an object with assumed attributes, draw it on the canvas
         drawOnCanvas: function(obj){
 			//image, start drawing from sprite at x, at y, sprite width, sprite height, draw on canvas at x, at y, width to draw this at, height
-			ted.ctx.drawImage(obj.sprite, obj.spritex, obj.spritey, obj.spritew, obj.spriteh, obj.xpos, obj.ypos, obj.w, obj.h);
+			ted.ctx.drawImage(obj.sprite, Math.round(obj.spritex), Math.round(obj.spritey), Math.round(obj.spritew), Math.round(obj.spriteh), Math.round(obj.xpos), Math.round(obj.ypos), Math.round(obj.w), Math.round(obj.h));
 		},
 		setupPlayer: function(){
 			ted.player = new PlayerObj();
-			//console.log(ted.canvasw,ted.player.w);
-			ted.player.xpos = (ted.canvasw / 100) * 10; //fixme
 			ted.player.init();
-			//http://stackoverflow.com/questions/12273451/how-to-fix-delay-in-javascript-keydown
-			window.addEventListener('keydown',function(e){
-			    ted.keyState[e.keyCode || e.which] = true;
-			},true);
-			window.addEventListener('keyup',function(e){
-			    ted.keyState[e.keyCode || e.which] = false;
-			},true);
 		},
 		setupWorld: function(){
 			ted.world = new WorldObj();
-			ted.world.w = ted.canvasw * worldsize;
-			ted.world.h = ted.canvash;
 			ted.world.init();
 		},
 		setupObjects: function(){
-			var obj = new ObjObj(objectimages[0],140,176,25,30,30); //chair
+			//fixme this is just testing for now
+			var obj = new ObjObj(allimages[4].images[0],140,176,20,30,30,'Chairs were invented by the ancient Egyptians originally as places to put cats. Years later slaves discovered they could also be used for sitting, although this was often discouraged publically.'); //chair
 			obj.init();
 			ted.objects.push(obj);
-			var obj2 = new ObjObj(objectimages[1],75,78,50,15,15); //clock
+			var obj2 = new ObjObj(allimages[4].images[1],75,78,40,15,15,'The first clock was made from grass strands and mud and was only correct twice a day.'); //clock
 			obj2.init();
 			ted.objects.push(obj2);
-			var obj3 = new ObjObj(objectimages[2],207,130,75,20,20); //tv
+			var obj3 = new ObjObj(allimages[4].images[2],207,130,60,20,20,'The origins of the television are lost in the mists of time but it is believed that an Egyptian named Lhost R\'mote pioneered the idea of having pictures moving on a screen for entertainment.'); //tv
 			obj3.init();
 			ted.objects.push(obj3);
-			var obj4 = new ObjObj(objectimages[3],42,25,95,5,5); //camera
+			var obj4 = new ObjObj(allimages[4].images[3],42,25,80,5,5,'The first photograph was taken in 1000BC in Alexandria by a native of the city. It was a Tuesday.'); //camera
 			obj4.init();
 			ted.objects.push(obj4);
+		},
+		setupControls: function(){
+			//click/touch left or right of screen to walk in that direction
+			var rightel = document.getElementById('right');
+			var leftel = document.getElementById('left');
+
+			rightel.addEventListener('mousedown',function(){ted.goright = 1;});
+			rightel.addEventListener('touchstart',function(){ted.goright = 1;});
+			rightel.addEventListener('mouseup',function(){ted.goright = 0;});
+			rightel.addEventListener('touchend',function(){ted.goright = 0;});
+
+			leftel.addEventListener('mousedown',function(){ted.goleft = 1;});
+			leftel.addEventListener('touchstart',function(){ted.goleft = 1;});
+			leftel.addEventListener('mouseup',function(){ted.goleft = 0;});
+			leftel.addEventListener('touchend',function(){ted.goleft = 0;});
+			
+			var closeinfo = document.getElementById('infoclose');
+			closeinfo.addEventListener('click',function(){ted.general.addClass(document.getElementById('info'),'fadeout');});
+
+			//detect motion on mobile devices
+			//http://stackoverflow.com/questions/4378435/how-to-access-accelerometer-gyroscope-data-from-javascript/4378439#4378439
+			var tilt = 0;
+			var yaw = 0;
+
+			if(window.DeviceOrientationEvent) { //desktop, samsung tab, ipod and ipad, apparently
+				window.addEventListener('deviceorientation',function(){
+					//$('#notice').html([event.beta.toFixed(2),' ',event.gamma.toFixed(2)]);
+					//liam's phone uses this one
+					ted.game.tilt(event.beta, event.gamma);
+				},true);
+			} else if(window.DeviceMotionEvent) {
+				window.addEventListener('devicemotion',function(){
+					ted.game.tilt(event.acceleration.x * 2, event.acceleration.y * 2);
+					//$('#notice').html([(event.acceleration.x * 2).toFixed(2),' ',(event.acceleration.y * 2).toFixed(2)]);
+				},true);
+			} else {
+				window.addEventListener('MozOrientation',function(){
+					ted.game.tilt(orientation.x * 50, orientation.y * 50);
+					//$('#notice').html([(orientation.x * 50).toFixed(2),' ',(orientation.y * 50).toFixed(2)]);
+				},true);
+			}
+			ted.orientation = window.orientation;
+			//listen for orientation changes
+			window.addEventListener("orientationchange", function() {
+				ted.orientation = window.orientation;
+			}, false);
+		},
+		//jquery's addClass without jquery
+		addClass: function(el,className){
+		    if(el.classList){
+				el.classList.add(className);
+			}
+			else {
+				el.className += ' ' + className;
+			}
+		},
+		//jquery's removeClass without jquery
+		removeClass: function(el,className){
+			if(el.classList){
+				el.classList.remove(className);
+			}
+			else {
+				el.className = el.className.replace(new RegExp('(^|\\b)' + className.split(' ').join('|') + '(\\b|$)', 'gi'), ' ');
+			}
 		}
     },
     game: {
+		tilt: function(tilt,yaw){
+			//$('#notice').html(tilt.toFixed(2));
+			var tiltby = 5;
+			if(tilt > tiltby){
+				//0 = portrait, -90 = landscape rotated to right, 90 = landscape rotated to left
+				//fixme hey this code is a bit clunky
+				if(ted.orientation === -90){
+					ted.goleft = 1;
+					ted.goright = 0;
+				}
+				else {
+					ted.goleft = 0;
+					ted.goright = 1;
+				}
+			}
+			else if(tilt < -tiltby){
+				if(ted.orientation === -90){
+					ted.goleft = 0;
+					ted.goright = 1;
+				}
+				else {
+					ted.goleft = 1;
+					ted.goright = 0;
+				}
+			}
+			else {
+				ted.goleft = 0;
+				ted.goright = 0;
+			}
+		},
 		//generic collision checking function between any given object and the player
 		checkPlayerCollision: function(obj,tp){
 		    //rule out any possible collisions, remembering that all y numbers are inverted on canvas
@@ -556,18 +332,52 @@ var ted = {
 		    return(1); //collision
 		},
 		gameLoop: function(){
-			ted.player.move(ted.keyState);
-			ted.general.clearCanvas(); //don't need to do this if we're completely overdrawing the canvas
-			ted.world.draw(4);
-			ted.world.draw(3);
-			ted.world.draw(2);
-			ted.world.draw(1);
-			for(var z = 0; z < ted.objects.length; z++){
-				ted.objects[z].doActions();
+			if(ted.gameloopvar){
+				ted.gameloopvar = 0;
+				//ted.general.clearCanvas(); //fixme don't need to do this if we're completely overdrawing the canvas
+				ted.player.move(ted.keyState);
+				ted.world.draw(4);
+				ted.world.draw(3);
+				ted.world.draw(2);
+				ted.world.draw(1);
+				/*
+				//fixme - bit of debug to draw the width of the world
+				ted.ctx.rect(0 - ted.world.xpos,(ted.canvash / 10) * 8,ted.world.w,ted.canvash / 20);
+				//console.log(ted.world.w,ted.world.xpos,0 - ted.world.xpos);
+				ted.ctx.fillStyle = 'green';
+				ted.ctx.fill();
+				*/
+
+				for(var z = 0; z < ted.objects.length; z++){
+					ted.objects[z].doActions();
+				}
+				ted.player.draw();
+				ted.world.draw(0);
+				
+				//debug mode
+				if(ted.debug){
+					//draw the floor lines
+					ted.ctx.beginPath();
+					ted.ctx.lineWidth = 1;
+					ted.ctx.strokeStyle = '#ff0000';
+
+					ted.ctx.moveTo(ted.world.realfloor[0][0] - ted.world.xpos, ted.world.realfloor[0][1]);
+					for(var p = 1; p < ted.world.realfloor.length; p++){
+						ted.ctx.lineTo(ted.world.realfloor[p][0] - ted.world.xpos, ted.world.realfloor[p][1]);
+						ted.ctx.stroke();
+					}
+
+					//show frames per second
+					if(ted.frametime < (new Date().getTime() - 1000)){
+						ted.frametime = new Date().getTime();
+						ted.debugmsg = ted.framecount + ' FPS';
+						ted.framecount = 0;
+					}
+					ted.framecount++;
+					document.getElementById('notice').innerHTML = ted.debugmsg;
+				}
+				ted.gameloopvar = 1;
 			}
-			ted.player.draw();
-			ted.world.draw(0);
-			setTimeout(ted.game.gameLoop,20);
 		}
 	}
 };
@@ -577,9 +387,18 @@ window.ted = ted;
 
 
 window.onload = function(){
+	/*
 	$.when.apply(null, loaders).done(function() {
 	    ted.general.init();
+	    ted.general.addClass(document.getElementById('loading'),'fadeout');
     });
+    */
+    Deferred.when(loaders).then(
+    	function(){
+		    ted.general.init();
+		    ted.general.addClass(document.getElementById('loading'),'fadeout');
+		}
+    );
 
 	var resize;
 	window.addEventListener('resize', function(event){

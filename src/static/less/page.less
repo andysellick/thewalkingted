@@ -24,4 +24,83 @@
 			margin:0 auto;
 			outline:solid 1px gray;
 		}
+
+		.controls {
+			position:absolute;
+			top:0;
+			width:40%;
+			height:100%;
+			.noselect;
+			
+			&.left {
+				left:0;
+			}
+			&.right {
+				right:0;
+			}
+		}
+		
+		.notice {
+			position:absolute;
+			top:0;
+			left:0;
+			width:100%;
+			background:rgba(255,255,255,0.5);
+			font-size:130%;
+			color:black;
+			text-align:center;
+		}
+		
+		.loading {
+			position:absolute;
+			top:0;
+			left:0;
+			width:0%;
+			height:20px;
+			background:green;
+			.transition( all 2s );
+			&.fadeout {
+				.transparency( 0 );
+			}
+		}
+
+		.info {
+			position:absolute;
+			top:5%;
+			left:20%;
+			width:60%;
+			padding:20px;
+			background:white;
+			.box-shadow( 0 5px 5px rgba(0,0,0,0.5) );
+			.border-radius( 5px );
+			.border-box();
+			.fontcalculate( 12 );
+			text-align:center;
+			.transition( all 2s );
+			&.fadeout {
+				.transparency( 0 );
+			}
+			
+			.close {
+				position:absolute;
+				bottom:0;
+				right:0;
+				padding:5px;
+				cursor:pointer;
+				text-decoration:underline;
+			}
+		}
+
+		.mobilewarning {
+			display:none;
+			position:absolute;
+			top:0;
+			left:0;
+			width:100%;
+			height:100%;
+			background:rgba(255,255,255,1);
+			&.shown {
+				display:block;
+			}
+		}
 	}

@@ -5,9 +5,9 @@
 <script src="static/bower_components/html5shiv/dist/html5shiv.min.js"></script>
 <![endif]-->
 
-    <title>title</title>
+    <title>Builtvisible Internal Project</title>
     <meta charset="utf-8" />
-    <meta name="viewport" content="initial-scale=1.0">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
     <link rel="stylesheet" type="text/css" href="static/css/styles.min.css"/>
     <script>
         /* we want to remove the nojs class as soon as possible on page load */
@@ -17,12 +17,24 @@
 </head>
 
 <body>
-	<div class="canvaswrapper">
+	<div id="canvasparent" class="canvaswrapper">
 		<canvas id="canvas" class="canvas"></canvas>
+		<div class="controls left" id="left" oncontextmenu="return false;"></div>
+		<div class="controls right" id="right" oncontextmenu="return false;"></div>
+		<div id="notice" class="notice"></div>
+		<div id="loading" class="loading"></div>
+		<div id="info" class="info fadeout">
+			<div id="infoclose" class="close">Dismiss</div>
+			<div id="infoinner"></div>
+		</div>
+		<div id="mobile" class="mobilewarning">
+			<div class="vertalign align-center">
+				Please turn your device to landscape for best performance
+			</div>
+		</div>
 	</div>
 
-    <script src="static/bower_components/jquery/dist/jquery.min.js"></script>
-    <!--[if lt IE 9 ]> 
+    <!--[if lt IE 9 ]>
     <script>(function() {$('body').addClass('iex');})();</script>
     <![endif]-->
     <script src="static/js/main.min.js"></script>
