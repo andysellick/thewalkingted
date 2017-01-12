@@ -256,7 +256,7 @@ var ted = {
 			}
 			ted.orientation = window.orientation;
 			//listen for orientation changes
-			window.addEventListener("orientationchange", function() {
+			window.addEventListener('orientationchange', function() {
 				ted.orientation = window.orientation;
 			}, false);
 		},

@@ -9,8 +9,9 @@
 				handler(arr[i]);
 			}
 		}
-		else
+		else {
 			handler(arr);
+		}
 	}
 
 	function D(fn) {
@@ -243,7 +244,7 @@
 			notify: function() {
 				return this.notifyWith(this, arguments);
 			}
-		}
+		};
 
 		var obj = promise.promise(deferred);
 
@@ -291,7 +292,7 @@
 				return df.promise();
 			})(arguments);
 		}
-	}
+	};
 
 	global.Deferred = D;
 })(window);
